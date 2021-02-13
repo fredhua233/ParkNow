@@ -70,8 +70,41 @@ class _MyAppState extends State<MyApp> {
     return await Geolocator.getCurrentPosition();
   }
 
+  void fetchData() {
+    users.get().asStream().asBroadcastStream().forEach((snap) {
+      _markers.clear();
+      for (var doc in snap.docs) {
+        if (doc.data()['Loc'] == _pref.getString('Loc')) {
+          setState(() {
+            _markers.add(Marker(
+              // This marker id can be anything that uniquely identifies each marker.
+              markerId: MarkerId(_pref.getString('Loc')),
+              position: LatLng(_pref.getDouble('Lat'), _pref.getDouble('Long')),
+              infoWindow: InfoWindow(
+                  title: 'My Location', snippet: doc.data()['Details']),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueBlue),
+            ));
+          });
+        } else {
+          setState(() {
+            _markers.add(Marker(
+              // This marker id can be anything that uniquely identifies each marker.
+              markerId: MarkerId(doc.data()['Loc']),
+              position: LatLng(doc.data()['lat'], doc.data()['long']),
+              infoWindow: InfoWindow(title: doc.data()['Details']),
+              icon: BitmapDescriptor.defaultMarker,
+            ));
+          });
+        }
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Getting everybody that are using the app
+
     return MaterialApp(
         home: Scaffold(
       appBar: AppBar(
@@ -126,10 +159,15 @@ class _MyAppState extends State<MyApp> {
                                     String details = _info.text;
                                     await _pref.setString(
                                         'Loc', current.toString());
-
+                                    await _pref.setDouble(
+                                        'Lat', current.latitude);
+                                    await _pref.setDouble(
+                                        'Long', current.longitude);
                                     await users.add({
                                       'Loc': current.toString(),
-                                      'Details': details
+                                      'Details': details,
+                                      'lat': currentPos.latitude,
+                                      'long': currentPos.longitude
                                     });
                                     // Create Marker
                                     setState(() {
@@ -183,6 +221,9 @@ class _MyAppState extends State<MyApp> {
                     backgroundColor: Colors.green,
                     child: const Icon(Icons.add_location, size: 36.0),
                   ),
+                  Align(
+                      alignment: Alignment.topRight,
+                      child: FloatingActionButton(onPressed: () => fetchData()))
                 ],
               );
             } else {
