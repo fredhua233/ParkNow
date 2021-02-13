@@ -71,8 +71,8 @@ class _MyAppState extends State<MyApp> {
   }
 
   void fetchData() {
+    _markers.clear();
     users.get().asStream().asBroadcastStream().forEach((snap) {
-      _markers.clear();
       for (var doc in snap.docs) {
         if (doc.data()['Loc'] == _pref.getString('Loc')) {
           setState(() {
