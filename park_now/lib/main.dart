@@ -18,7 +18,10 @@ class _MyAppState extends State<MyApp> {
   FirebaseFirestore db;
   Position currentPos;
   Set<Marker> _markers = new Set();
-  TextEditingController _info = new TextEditingController();
+  TextEditingController _name = new TextEditingController();
+  TextEditingController _phone = new TextEditingController();
+  TextEditingController _message = new TextEditingController();
+  final _formKey = GlobalKey<FormState>();
   CollectionReference users;
   bool parked = !(StorageUtil.getString('Loc') == 'None');
   SharedPreferences _pref;
@@ -140,15 +143,38 @@ class _MyAppState extends State<MyApp> {
                           builder: (BuildContext context) {
                             // return object of type Dialog
                             return AlertDialog(
-                              title: new Text("Enter Details"),
+                              title: new Text("Contact Me!"),
                               content: Padding(
                                   padding: const EdgeInsets.all(16.0),
-                                  child: TextField(
-                                    decoration: InputDecoration(
-                                      border: OutlineInputBorder(),
-                                      labelText: 'Type in Your Info',
-                                    ),
-                                    controller: _info,
+                                  child: Column(
+                                    children: [
+                                      Expanded(
+                                        child: TextField(
+                                          decoration: InputDecoration(
+                                            border: OutlineInputBorder(),
+                                            labelText: 'Name',
+                                          ),
+                                          controller: _name,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: TextField(
+                                          decoration: InputDecoration(
+                                            border: OutlineInputBorder(),
+                                            labelText: 'Phone Number',
+                                          ),
+                                          controller: _phone,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: TextField(
+                                            decoration: InputDecoration(
+                                              border: OutlineInputBorder(),
+                                              labelText: 'Message',
+                                            ),
+                                            controller: _message),
+                                      ),
+                                    ],
                                   )),
                               actions: <Widget>[
                                 // usually buttons at the bottom of the dialog
@@ -156,7 +182,9 @@ class _MyAppState extends State<MyApp> {
                                   // Saves revelant data to the cloud and shared pref
                                   child: new Text("Save"),
                                   onPressed: () async {
-                                    String details = _info.text;
+                                    String name = _name.text;
+                                    String phone = _phone.text;
+                                    String message = _message.text;
                                     await _pref.setString(
                                         'Loc', current.toString());
                                     await _pref.setDouble(
@@ -165,7 +193,9 @@ class _MyAppState extends State<MyApp> {
                                         'Long', current.longitude);
                                     await users.add({
                                       'Loc': current.toString(),
-                                      'Details': details,
+                                      'Name': name,
+                                      'Phone': phone,
+                                      'Message': message,
                                       'lat': currentPos.latitude,
                                       'long': currentPos.longitude
                                     });
@@ -178,7 +208,11 @@ class _MyAppState extends State<MyApp> {
                                         position: current,
                                         infoWindow: InfoWindow(
                                             title: 'My Location',
-                                            snippet: details),
+                                            snippet: name +
+                                                ", " +
+                                                phone +
+                                                "\n" +
+                                                message),
                                         icon: BitmapDescriptor
                                             .defaultMarkerWithHue(
                                                 BitmapDescriptor.hueBlue),
