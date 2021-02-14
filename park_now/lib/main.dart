@@ -171,7 +171,7 @@ class _MyAppState extends State<MyApp> {
                                   ' minutes and ' +
                                   estimatedCarbonEmission
                                       .toString()
-                                      .substring(0, 4) +
+                                      .substring(0, 6) +
                                   ' pounds of CO2 for our planet!',
                               style: TextStyle(
                                 color: Colors.black,
@@ -184,7 +184,7 @@ class _MyAppState extends State<MyApp> {
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
         );
       });
-      print(closest.toJson());
+      // print(closest.toJson());
       markers.add(closest);
     }
     return closest.position;
@@ -374,38 +374,20 @@ class _MyAppState extends State<MyApp> {
                                                       currentPos.longitude, 9));
 
                                               // Implement replacement
-                                              // users
-                                              //     .where('geohash10',
-                                              //         isEqualTo: encode(
-                                              //             currentPos.latitude,
-                                              //             currentPos.longitude,
-                                              //             9))
-                                              //     .get()
-                                              //     .then((value) {
-                                              //   DocumentReference closest =
-                                              //       value.docs[0].reference;
-                                              //   closest.delete();
-                                              // });
+                                              QuerySnapshot same = await users
+                                                  .where('geohash10',
+                                                      isEqualTo: encode(
+                                                          currentPos.latitude,
+                                                          currentPos.longitude,
+                                                          9))
+                                                  .get();
 
-                                              // since accurate up to 1 meter just take the first in the region
-                                              // users.add({
-                                              //   'Loc': current.toString(),
-                                              //   'lat': currentPos.latitude,
-                                              //   'long': currentPos.longitude,
-                                              //   'Name': name,
-                                              //   'Phone': phone,
-                                              //   'Message': message,
-                                              //   'Plate': plate,
-                                              //   'geohash6': encode(
-                                              //       currentPos.latitude,
-                                              //       currentPos.longitude,
-                                              //       6),
-                                              //   'geohash10': encode(
-                                              //       currentPos.latitude,
-                                              //       currentPos.longitude,
-                                              //       9),
-                                              //   'taken': true
-                                              // });
+                                              if (same.docs.isNotEmpty) {
+                                                for (var d in same.docs) {
+                                                  d.reference.delete();
+                                                }
+                                              }
+
                                               await users.add({
                                                 'Loc': current.toString(),
                                                 'lat': currentPos.latitude,
@@ -479,7 +461,7 @@ class _MyAppState extends State<MyApp> {
                                         'Name': 'N/A',
                                         'Plate': 'Open',
                                         'Phone': 'N/A'
-                                      });
+                                      }).then((value) => fetchData(context));
                                     });
                                   });
                                   await _pref.setString('Loc', 'None');
