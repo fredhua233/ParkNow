@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -8,7 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:geoflutterfire/geoflutterfire.dart';
 import 'Utils.dart';
-import 'dart:math';
 
 void main() => runApp(MyApp());
 
@@ -268,7 +265,7 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
         home: Scaffold(
       appBar: AppBar(
-        title: Text('Welcome to ParkNow!'),
+        title: Text('Welcome to Park'),
         backgroundColor: Colors.blue,
       ),
       body: FutureBuilder<Position>(
@@ -377,21 +374,38 @@ class _MyAppState extends State<MyApp> {
                                                       currentPos.longitude, 9));
 
                                               // Implement replacement
-                                              users
-                                                  .where('geohash10',
-                                                      isEqualTo: encode(
-                                                          currentPos.latitude,
-                                                          currentPos.longitude,
-                                                          9))
-                                                  .get()
-                                                  .then((value) {
-                                                DocumentReference closest =
-                                                    value.docs[0].reference;
-                                                closest.delete();
-                                              });
+                                              // users
+                                              //     .where('geohash10',
+                                              //         isEqualTo: encode(
+                                              //             currentPos.latitude,
+                                              //             currentPos.longitude,
+                                              //             9))
+                                              //     .get()
+                                              //     .then((value) {
+                                              //   DocumentReference closest =
+                                              //       value.docs[0].reference;
+                                              //   closest.delete();
+                                              // });
 
                                               // since accurate up to 1 meter just take the first in the region
-
+                                              // users.add({
+                                              //   'Loc': current.toString(),
+                                              //   'lat': currentPos.latitude,
+                                              //   'long': currentPos.longitude,
+                                              //   'Name': name,
+                                              //   'Phone': phone,
+                                              //   'Message': message,
+                                              //   'Plate': plate,
+                                              //   'geohash6': encode(
+                                              //       currentPos.latitude,
+                                              //       currentPos.longitude,
+                                              //       6),
+                                              //   'geohash10': encode(
+                                              //       currentPos.latitude,
+                                              //       currentPos.longitude,
+                                              //       9),
+                                              //   'taken': true
+                                              // });
                                               await users.add({
                                                 'Loc': current.toString(),
                                                 'lat': currentPos.latitude,
@@ -467,7 +481,6 @@ class _MyAppState extends State<MyApp> {
                                         'Phone': 'N/A'
                                       });
                                     });
-                                    fetchData(context);
                                   });
                                   await _pref.setString('Loc', 'None');
                                   await _pref.setDouble('Lat', 0);
@@ -530,7 +543,7 @@ class _MyAppState extends State<MyApp> {
                                             zoom: 17)));
                               }))),
 
-                  //Generate fake cars
+                  // Generate fake cars
                   // Align(
                   //   alignment: Alignment.topCenter,
                   //   child: Padding(
