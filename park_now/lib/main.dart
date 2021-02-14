@@ -4,7 +4,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:geoflutterfire/geoflutterfire.dart';
 import 'Utils.dart';
+import 'dart:math';
 
 void main() => runApp(MyApp());
 
@@ -16,12 +18,17 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   GoogleMapController mapController;
   FirebaseFirestore db;
+  // final geo = Geoflutterfire();
+  static const BASE32_CODES = '0123456789bcdefghjkmnpqrstuvwxyz';
+
   Position currentPos;
   Set<Marker> _markers = new Set();
   TextEditingController _name = new TextEditingController();
   TextEditingController _phone = new TextEditingController();
   TextEditingController _message = new TextEditingController();
   TextEditingController _plate = new TextEditingController();
+
+  double carDensity = 0;
 
   CollectionReference users;
   bool parked = !(StorageUtil.getString('Loc') == 'None' ||
@@ -75,8 +82,51 @@ class _MyAppState extends State<MyApp> {
     return await Geolocator.getCurrentPosition();
   }
 
+  String encode(var latitude, var longitude, var numberOfChars) {
+    var chars = [], bits = 0, bitsTotal = 0, hashValue = 0;
+    double maxLat = 90, minLat = -90, maxLon = 180, minLon = -180, mid;
+
+    while (chars.length < numberOfChars) {
+      if (bitsTotal % 2 == 0) {
+        mid = (maxLon + minLon) / 2;
+        if (longitude > mid) {
+          hashValue = (hashValue << 1) + 1;
+          minLon = mid;
+        } else {
+          hashValue = (hashValue << 1) + 0;
+          maxLon = mid;
+        }
+      } else {
+        mid = (maxLat + minLat) / 2;
+        if (latitude > mid) {
+          hashValue = (hashValue << 1) + 1;
+          minLat = mid;
+        } else {
+          hashValue = (hashValue << 1) + 0;
+          maxLat = mid;
+        }
+      }
+
+      bits++;
+      bitsTotal++;
+      if (bits == 5) {
+        var code = BASE32_CODES[hashValue];
+        chars.add(code);
+        bits = 0;
+        hashValue = 0;
+      }
+    }
+
+    return chars.join('');
+  }
+
   void fetchData(BuildContext context) {
     _markers.clear();
+    LatLng sw = new LatLng(
+        _pref.getDouble('Lat') - 0.0005, _pref.getDouble('Long') - 0.0005);
+    LatLng ne = new LatLng(
+        _pref.getDouble('Lat') + 0.0005, _pref.getDouble('Long') + 0.0005);
+    LatLngBounds bnds = new LatLngBounds(southwest: sw, northeast: ne);
     users.get().asStream().asBroadcastStream().forEach((snap) {
       for (var doc in snap.docs) {
         if (doc.data()['Loc'] == _pref.getString('Loc')) {
@@ -93,6 +143,8 @@ class _MyAppState extends State<MyApp> {
                     BitmapDescriptor.hueBlue)));
           });
         } else {
+          // LatLng pt = new LatLng(doc.data()['lat'], doc.data()['long']);
+          // if (bnds.contains(pt)) {
           setState(() {
             _markers.add(Marker(
                 // This marker id can be anything that uniquely identifies each marker.
@@ -106,28 +158,27 @@ class _MyAppState extends State<MyApp> {
                       builder: (BuildContext context) {
                         return AlertDialog(
                             title: Text('Contact'),
-                            content: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Column(
-                                  children: [
-                                    Expanded(
-                                        child: Text(
-                                            'Name: ' + doc.data()['Name'])),
-                                    Expanded(
-                                        child: Text(
-                                            'Phone: ' + doc.data()['Phone'])),
-                                    Expanded(
-                                        child: Text(
-                                            'Plate: ' + doc.data()['Plate'])),
-                                    Expanded(
-                                        child: Text('Message: ' +
-                                            doc.data()['Message'])),
-                                  ],
-                                )));
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Expanded(
+                                    child: Text('Name: ' + doc.data()['Name'])),
+                                Expanded(
+                                    child:
+                                        Text('Phone: ' + doc.data()['Phone'])),
+                                Expanded(
+                                    child:
+                                        Text('Plate: ' + doc.data()['Plate'])),
+                                Expanded(
+                                    child: Text(
+                                        'Message: ' + doc.data()['Message'])),
+                              ],
+                            ));
                       }),
                 ),
                 icon: BitmapDescriptor.defaultMarker));
           });
+          // }
         }
       }
     });
@@ -136,7 +187,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     // Getting everybody that are using the app
-
+    // fetchData(context);
     return MaterialApp(
         home: Scaffold(
       appBar: AppBar(
@@ -179,52 +230,47 @@ class _MyAppState extends State<MyApp> {
                                       // return object of type Dialog
                                       return AlertDialog(
                                         title: new Text("Contact Me!"),
-                                        content: Padding(
-                                            padding: const EdgeInsets.all(16.0),
-                                            child: Column(
-                                              children: [
-                                                Expanded(
-                                                  child: TextField(
-                                                    decoration: InputDecoration(
-                                                      border:
-                                                          OutlineInputBorder(),
-                                                      labelText: 'Name',
-                                                    ),
-                                                    controller: _name,
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Expanded(
+                                              child: TextField(
+                                                decoration: InputDecoration(
+                                                  border: OutlineInputBorder(),
+                                                  labelText: 'Name',
+                                                ),
+                                                controller: _name,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: TextField(
+                                                decoration: InputDecoration(
+                                                  border: OutlineInputBorder(),
+                                                  labelText: 'Phone Number',
+                                                ),
+                                                controller: _phone,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: TextField(
+                                                  decoration: InputDecoration(
+                                                    border:
+                                                        OutlineInputBorder(),
+                                                    labelText: 'Message',
                                                   ),
-                                                ),
-                                                Expanded(
-                                                  child: TextField(
-                                                    decoration: InputDecoration(
-                                                      border:
-                                                          OutlineInputBorder(),
-                                                      labelText: 'Phone Number',
-                                                    ),
-                                                    controller: _phone,
+                                                  controller: _message),
+                                            ),
+                                            Expanded(
+                                              child: TextField(
+                                                  decoration: InputDecoration(
+                                                    border:
+                                                        OutlineInputBorder(),
+                                                    labelText: 'Plate',
                                                   ),
-                                                ),
-                                                Expanded(
-                                                  child: TextField(
-                                                      decoration:
-                                                          InputDecoration(
-                                                        border:
-                                                            OutlineInputBorder(),
-                                                        labelText: 'Message',
-                                                      ),
-                                                      controller: _message),
-                                                ),
-                                                Expanded(
-                                                  child: TextField(
-                                                      decoration:
-                                                          InputDecoration(
-                                                        border:
-                                                            OutlineInputBorder(),
-                                                        labelText: 'Plate',
-                                                      ),
-                                                      controller: _plate),
-                                                ),
-                                              ],
-                                            )),
+                                                  controller: _plate),
+                                            ),
+                                          ],
+                                        ),
                                         actions: <Widget>[
                                           // usually buttons at the bottom of the dialog
                                           FlatButton(
@@ -248,7 +294,11 @@ class _MyAppState extends State<MyApp> {
                                                 'Name': name,
                                                 'Phone': phone,
                                                 'Message': message,
-                                                "Plate": plate,
+                                                'Plate': plate,
+                                                'geohash': encode(
+                                                    currentPos.latitude,
+                                                    currentPos.longitude,
+                                                    10)
                                               });
                                               // Create Marker
                                               setState(() {
@@ -346,6 +396,36 @@ class _MyAppState extends State<MyApp> {
                                                 currentPos.longitude),
                                             zoom: 14)));
                               }))),
+
+                  ////Generate fake cars
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: FloatingActionButton(
+                            child: const Icon(Icons.navigation_rounded),
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.blue,
+                            onPressed: () {
+                              Random r = new Random();
+                              for (var i = 0; i < 100; i++) {
+                                double lat = currentPos.latitude +
+                                    (0.005 - r.nextDouble() / 100);
+                                double lon = currentPos.longitude +
+                                    (0.005 - r.nextDouble() / 100);
+                                users.add({
+                                  'Loc': 'LatLng($lat, $lon)',
+                                  'Message': 'N/A',
+                                  'lat': lat,
+                                  'long': lon,
+                                  'Name': 'Bob$i',
+                                  'Plate': 'ABC$i',
+                                  'Phone': '$i',
+                                  'geohash': encode(lat, lon, 10)
+                                });
+                              }
+                            })),
+                  )
                 ],
               );
             } else {
