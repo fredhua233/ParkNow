@@ -116,18 +116,19 @@ class _MyAppState extends State<MyApp> {
         hashValue = 0;
       }
     }
-
     return chars.join('');
   }
 
   void fetchData(BuildContext context) {
     _markers.clear();
-    LatLng sw = new LatLng(
-        _pref.getDouble('Lat') - 0.0005, _pref.getDouble('Long') - 0.0005);
-    LatLng ne = new LatLng(
-        _pref.getDouble('Lat') + 0.0005, _pref.getDouble('Long') + 0.0005);
-    LatLngBounds bnds = new LatLngBounds(southwest: sw, northeast: ne);
-    users.get().asStream().asBroadcastStream().forEach((snap) {
+    users
+        .where('geohash6',
+            isEqualTo: encode(currentPos.latitude, currentPos.longitude, 6))
+        .get()
+        .asStream()
+        .asBroadcastStream()
+        .forEach((snap) {
+      print(snap.docs);
       for (var doc in snap.docs) {
         if (doc.data()['Loc'] == _pref.getString('Loc')) {
           setState(() {
@@ -176,7 +177,10 @@ class _MyAppState extends State<MyApp> {
                             ));
                       }),
                 ),
-                icon: BitmapDescriptor.defaultMarker));
+                icon: doc.data()['taken']
+                    ? BitmapDescriptor.defaultMarker
+                    : BitmapDescriptor.defaultMarkerWithHue(
+                        BitmapDescriptor.hueGreen)));
           });
           // }
         }
@@ -284,9 +288,21 @@ class _MyAppState extends State<MyApp> {
                                               await _pref.setString(
                                                   'Loc', current.toString());
                                               await _pref.setDouble(
-                                                  'Lat', current.latitude);
+                                                  'Lat', currentPos.latitude);
                                               await _pref.setDouble(
-                                                  'Long', current.longitude);
+                                                  'Long', currentPos.longitude);
+                                              await _pref.setString(
+                                                  'geohash6',
+                                                  encode(currentPos.latitude,
+                                                      currentPos.longitude, 6));
+                                              await _pref.setString(
+                                                  'geohash10',
+                                                  encode(
+                                                      currentPos.latitude,
+                                                      currentPos.longitude,
+                                                      10));
+
+                                              // Implement replacement
                                               await users.add({
                                                 'Loc': current.toString(),
                                                 'lat': currentPos.latitude,
@@ -295,10 +311,15 @@ class _MyAppState extends State<MyApp> {
                                                 'Phone': phone,
                                                 'Message': message,
                                                 'Plate': plate,
-                                                'geohash': encode(
+                                                'geohash6': encode(
                                                     currentPos.latitude,
                                                     currentPos.longitude,
-                                                    10)
+                                                    6),
+                                                'geohash10': encode(
+                                                    currentPos.latitude,
+                                                    currentPos.longitude,
+                                                    10),
+                                                'taken': true
                                               });
                                               // Create Marker
                                               setState(() {
@@ -338,6 +359,7 @@ class _MyAppState extends State<MyApp> {
                                     },
                                   );
                                 } else {
+                                  // Implementing turning Green
                                   setState(() {
                                     parked = false;
                                     _markers.removeWhere((element) =>
@@ -357,6 +379,10 @@ class _MyAppState extends State<MyApp> {
                                     });
                                   });
                                   await _pref.setString('Loc', 'None');
+                                  await _pref.setDouble('Lat', 0);
+                                  await _pref.setDouble('Long', 0);
+                                  await _pref.setString('geohash6', 'None');
+                                  await _pref.setString('geohash10', 'None');
                                 }
                               },
                               materialTapTargetSize:
@@ -394,38 +420,40 @@ class _MyAppState extends State<MyApp> {
                                         CameraPosition(
                                             target: LatLng(currentPos.latitude,
                                                 currentPos.longitude),
-                                            zoom: 14)));
+                                            zoom: 15)));
                               }))),
 
                   ////Generate fake cars
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: FloatingActionButton(
-                            child: const Icon(Icons.navigation_rounded),
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.blue,
-                            onPressed: () {
-                              Random r = new Random();
-                              for (var i = 0; i < 100; i++) {
-                                double lat = currentPos.latitude +
-                                    (0.005 - r.nextDouble() / 100);
-                                double lon = currentPos.longitude +
-                                    (0.005 - r.nextDouble() / 100);
-                                users.add({
-                                  'Loc': 'LatLng($lat, $lon)',
-                                  'Message': 'N/A',
-                                  'lat': lat,
-                                  'long': lon,
-                                  'Name': 'Bob$i',
-                                  'Plate': 'ABC$i',
-                                  'Phone': '$i',
-                                  'geohash': encode(lat, lon, 10)
-                                });
-                              }
-                            })),
-                  )
+                  // Align(
+                  //   alignment: Alignment.topCenter,
+                  //   child: Padding(
+                  //       padding: EdgeInsets.all(16),
+                  //       child: FloatingActionButton(
+                  //           child: const Icon(Icons.navigation_rounded),
+                  //           backgroundColor: Colors.white,
+                  //           foregroundColor: Colors.blue,
+                  //           onPressed: () {
+                  //             Random r = new Random();
+                  //             for (var i = 0; i < 100; i++) {
+                  //               double lat = currentPos.latitude +
+                  //                   (0.005 - r.nextDouble() / 100);
+                  //               double lon = currentPos.longitude +
+                  //                   (0.005 - r.nextDouble() / 100);
+                  //               users.add({
+                  //                 'Loc': 'LatLng($lat, $lon)',
+                  //                 'Message': 'N/A',
+                  //                 'lat': lat,
+                  //                 'long': lon,
+                  //                 'Name': 'Bob$i',
+                  //                 'Plate': 'ABC$i',
+                  //                 'Phone': '$i',
+                  //                 'geohash6': encode(lat, lon, 6),
+                  //                 'geohash10': encode(lat, lon, 10),
+                  //                 'taken': r.nextBool()
+                  //               });
+                  //             }
+                  //           })),
+                  // )
                 ],
               );
             } else {
