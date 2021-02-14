@@ -374,19 +374,40 @@ class _MyAppState extends State<MyApp> {
                                                       currentPos.longitude, 9));
 
                                               // Implement replacement
-                                              QuerySnapshot same = await users
+                                              // QuerySnapshot same = await users
+                                              //     .where('geohash10',
+                                              //         isEqualTo: encode(
+                                              //             currentPos.latitude,
+                                              //             currentPos.longitude,
+                                              //             9))
+                                              //     .get();
+
+                                              // if (same.docs.isNotEmpty) {
+                                              //   for (var d in same.docs) {
+                                              //     if (d.data()['Loc'] !=
+                                              //         current.toString()) {
+                                              //       print(d);
+                                              //       d.reference.delete();
+                                              //     }
+                                              //   }
+                                              // }
+                                              await users
                                                   .where('geohash10',
                                                       isEqualTo: encode(
                                                           currentPos.latitude,
                                                           currentPos.longitude,
                                                           9))
-                                                  .get();
-
-                                              if (same.docs.isNotEmpty) {
-                                                for (var d in same.docs) {
-                                                  d.reference.delete();
+                                                  .get()
+                                                  .then((same) {
+                                                if (same.docs.isNotEmpty) {
+                                                  for (var d in same.docs) {
+                                                    if (d.data()['Loc'] !=
+                                                        current.toString()) {
+                                                      users.doc(d.id).delete();
+                                                    }
+                                                  }
                                                 }
-                                              }
+                                              });
 
                                               await users.add({
                                                 'Loc': current.toString(),
