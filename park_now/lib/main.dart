@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -20,7 +22,6 @@ class _MyAppState extends State<MyApp> {
   FirebaseFirestore db;
   // final geo = Geoflutterfire();
   static const BASE32_CODES = '0123456789bcdefghjkmnpqrstuvwxyz';
-
   Position currentPos;
   Set<Marker> _markers = new Set();
   TextEditingController _name = new TextEditingController();
@@ -29,6 +30,8 @@ class _MyAppState extends State<MyApp> {
   TextEditingController _plate = new TextEditingController();
 
   double carDensity = 0;
+  double estimatedSearchTime = 0;
+  double estimatedCarbonEmission = 0;
 
   CollectionReference users;
   bool parked = !(StorageUtil.getString('Loc') == 'None' ||
@@ -119,6 +122,77 @@ class _MyAppState extends State<MyApp> {
     return chars.join('');
   }
 
+  LatLng findClosest(Set markers, BuildContext context) {
+    double dist = 99999;
+    Marker closest;
+
+    for (var marker in markers) {
+      if (marker.toJson()['infoWindow']['title'] == 'Open') {
+        double distBtwn = Geolocator.distanceBetween(
+            marker.position.latitude,
+            marker.position.longitude,
+            currentPos.latitude,
+            currentPos.longitude);
+        if (distBtwn < dist) {
+          dist = distBtwn;
+          closest = marker;
+        }
+      }
+    }
+    if (closest != null) {
+      markers.remove(closest);
+      setState(() {
+        List<Marker> occupied = new List<Marker>();
+        for (var marker in _markers) {
+          if (marker.toJson()['infoWindow']['title'] == 'Open') {
+            occupied.add(marker.clone());
+          }
+        }
+        carDensity = occupied.length / (0.61 * 0.61);
+        estimatedSearchTime = (occupied.length * 6 / 5.36) / 60;
+        estimatedCarbonEmission = (occupied.length * 6) * (0.78 / 1600);
+        occupied.clear();
+        closest = closest.copyWith(
+          onTapParam: () {
+            showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                      title: Text('Thanks for being sustainable!',
+                          style: TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold)),
+                      backgroundColor: const Color(0xFFc8f7c8),
+                      content: SingleChildScrollView(
+                        child: Container(
+                          alignment: Alignment.center,
+                          child: Text(
+                              'You just saved ' +
+                                  estimatedSearchTime
+                                      .toString()
+                                      .substring(0, 4) +
+                                  ' minutes and ' +
+                                  estimatedCarbonEmission
+                                      .toString()
+                                      .substring(0, 4) +
+                                  ' pounds of CO2 for our planet!',
+                              style: TextStyle(
+                                color: Colors.black,
+                              )),
+                        ),
+                      ));
+                });
+          },
+          iconParam:
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        );
+      });
+      print(closest.toJson());
+      markers.add(closest);
+    }
+    return closest.position;
+  }
+
   void fetchData(BuildContext context) {
     _markers.clear();
     users
@@ -128,7 +202,6 @@ class _MyAppState extends State<MyApp> {
         .asStream()
         .asBroadcastStream()
         .forEach((snap) {
-      print(snap.docs);
       for (var doc in snap.docs) {
         if (doc.data()['Loc'] == _pref.getString('Loc')) {
           setState(() {
@@ -195,7 +268,7 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
         home: Scaffold(
       appBar: AppBar(
-        title: Text('Map'),
+        title: Text('Welcome to ParkNow!'),
         backgroundColor: Colors.blue,
       ),
       body: FutureBuilder<Position>(
@@ -207,6 +280,8 @@ class _MyAppState extends State<MyApp> {
                 children: [
                   GoogleMap(
                       onMapCreated: _onMapCreated,
+                      myLocationEnabled: true,
+                      myLocationButtonEnabled: false,
                       zoomControlsEnabled: false,
                       initialCameraPosition: CameraPosition(
                         target:
@@ -302,25 +377,20 @@ class _MyAppState extends State<MyApp> {
                                                       currentPos.longitude, 9));
 
                                               // Implement replacement
-                                              QuerySnapshot closeSpots =
-                                                  await users
-                                                      .where(
-                                                          'geohash10',
-                                                          isEqualTo: encode(
-                                                              currentPos
-                                                                  .latitude,
-                                                              currentPos
-                                                                  .longitude,
-                                                              9))
-                                                      .get();
+                                              users
+                                                  .where('geohash10',
+                                                      isEqualTo: encode(
+                                                          currentPos.latitude,
+                                                          currentPos.longitude,
+                                                          9))
+                                                  .get()
+                                                  .then((value) {
+                                                DocumentReference closest =
+                                                    value.docs[0].reference;
+                                                closest.delete();
+                                              });
 
                                               // since accurate up to 1 meter just take the first in the region
-                                              if (closeSpots.size > 0) {
-                                                DocumentReference closest =
-                                                    closeSpots
-                                                        .docs[0].reference;
-                                                closest.delete();
-                                              }
 
                                               await users.add({
                                                 'Loc': current.toString(),
@@ -355,7 +425,7 @@ class _MyAppState extends State<MyApp> {
                                                           phone +
                                                           "," +
                                                           plate +
-                                                          "\n" +
+                                                          ", " +
                                                           message),
                                                   icon: BitmapDescriptor
                                                       .defaultMarkerWithHue(
@@ -370,6 +440,7 @@ class _MyAppState extends State<MyApp> {
                                           FlatButton(
                                             child: new Text("Cancel"),
                                             onPressed: () {
+                                              fetchData(context);
                                               Navigator.of(context).pop();
                                             },
                                           ),
@@ -388,15 +459,21 @@ class _MyAppState extends State<MyApp> {
                                       .get()
                                       .then((qSnap) {
                                     qSnap.docs.forEach((doc) {
-                                      doc.reference.update({'taken': false});
+                                      doc.reference.update({
+                                        'taken': false,
+                                        'Message': 'N/A',
+                                        'Name': 'N/A',
+                                        'Plate': 'Open',
+                                        'Phone': 'N/A'
+                                      });
                                     });
+                                    fetchData(context);
                                   });
                                   await _pref.setString('Loc', 'None');
                                   await _pref.setDouble('Lat', 0);
                                   await _pref.setDouble('Long', 0);
                                   await _pref.setString('geohash6', 'None');
                                   await _pref.setString('geohash10', 'None');
-                                  fetchData(context);
                                 }
                               },
                               materialTapTargetSize:
@@ -418,8 +495,24 @@ class _MyAppState extends State<MyApp> {
                           padding: EdgeInsets.all(16),
                           child: FloatingActionButton(
                               child: const Icon(Icons.refresh),
-                              onPressed: () => fetchData(context)))),
-
+                              onPressed: () {
+                                fetchData(context);
+                              }))),
+                  Align(
+                      alignment: Alignment.topRight,
+                      child: Padding(
+                          padding: EdgeInsets.fromLTRB(0, 50, 16, 0),
+                          child: FloatingActionButton(
+                              child: const Icon(Icons.search),
+                              onPressed: () {
+                                LatLng closest = findClosest(_markers, context);
+                                mapController.animateCamera(
+                                    CameraUpdate.newCameraPosition(
+                                        CameraPosition(
+                                  target: closest,
+                                  zoom: 17,
+                                )));
+                              }))),
                   Align(
                       alignment: Alignment.topLeft,
                       child: Padding(
@@ -434,41 +527,41 @@ class _MyAppState extends State<MyApp> {
                                         CameraPosition(
                                             target: LatLng(currentPos.latitude,
                                                 currentPos.longitude),
-                                            zoom: 15)));
+                                            zoom: 17)));
                               }))),
 
                   //Generate fake cars
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: FloatingActionButton(
-                            child: const Icon(Icons.navigation_rounded),
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.blue,
-                            onPressed: () {
-                              Random r = new Random();
-                              for (var i = 0; i < 100; i++) {
-                                double lat = currentPos.latitude +
-                                    (0.005 - r.nextDouble() / 100);
-                                double lon = currentPos.longitude +
-                                    (0.005 - r.nextDouble() / 100);
-                                users.add({
-                                  'Loc': 'LatLng($lat, $lon)',
-                                  'Message': 'N/A',
-                                  'lat': lat,
-                                  'long': lon,
-                                  'Name': 'Bob$i',
-                                  'Plate': 'ABC$i',
-                                  'Phone': '$i',
-                                  'geohash6': encode(lat, lon, 6),
-                                  'geohash10': encode(lat, lon, 9),
-                                  'taken': r.nextBool()
-                                });
-                              }
-                            })),
-                  )
-                  //Generate fake cars
+                  // Align(
+                  //   alignment: Alignment.topCenter,
+                  //   child: Padding(
+                  //       padding: EdgeInsets.all(16),
+                  //       child: FloatingActionButton(
+                  //           child: const Icon(Icons.navigation_rounded),
+                  //           backgroundColor: Colors.white,
+                  //           foregroundColor: Colors.blue,
+                  //           onPressed: () {
+                  //             Random r = new Random();
+                  //             for (var i = 0; i < 100; i++) {
+                  //               double lat = currentPos.latitude +
+                  //                   (0.005 - r.nextDouble() / 100);
+                  //               double lon = currentPos.longitude +
+                  //                   (0.005 - r.nextDouble() / 100);
+                  //               users.add({
+                  //                 'Loc': 'LatLng($lat, $lon)',
+                  //                 'Message': 'N/A',
+                  //                 'lat': lat,
+                  //                 'long': lon,
+                  //                 'Name': 'Bob$i',
+                  //                 'Plate': 'ABC$i',
+                  //                 'Phone': '$i',
+                  //                 'geohash6': encode(lat, lon, 6),
+                  //                 'geohash10': encode(lat, lon, 9),
+                  //                 'taken': r.nextBool()
+                  //               });
+                  //             }
+                  //           })),
+                  // )
+                  // Generate fake cars
                   // Align(
                   //   alignment: Alignment.topCenter,
                   //   child: Padding(
@@ -480,10 +573,14 @@ class _MyAppState extends State<MyApp> {
                   //           onPressed: () {
                   //             users.get().asStream().forEach((element) {
                   //               for (var doc in element.docs) {
-                  //                 doc.reference.update({
-                  //                   'geohash10': encode(doc.data()['lat'],
-                  //                       doc.data()['long'], 9)
-                  //                 });
+                  //                 if (!doc.data()['taken']) {
+                  //                   doc.reference.update({
+                  //                     'Message': 'N/A',
+                  //                     'Name': 'N/A',
+                  //                     'Plate': 'Open',
+                  //                     'Phone': 'N/A'
+                  //                   });
+                  //                 }
                   //               }
                   //             });
                   //           })),
@@ -491,7 +588,7 @@ class _MyAppState extends State<MyApp> {
                 ],
               );
             } else {
-              return CircularProgressIndicator();
+              return Center(child: CircularProgressIndicator());
             }
           }),
     ));
