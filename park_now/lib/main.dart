@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:geoflutterfire/geoflutterfire.dart';
+import 'dart:math';
 import 'Utils.dart';
 
 void main() => runApp(MyApp());
@@ -391,23 +392,23 @@ class _MyAppState extends State<MyApp> {
                                               //     }
                                               //   }
                                               // }
-                                              await users
-                                                  .where('geohash10',
-                                                      isEqualTo: encode(
-                                                          currentPos.latitude,
-                                                          currentPos.longitude,
-                                                          9))
-                                                  .get()
-                                                  .then((same) {
-                                                if (same.docs.isNotEmpty) {
-                                                  for (var d in same.docs) {
-                                                    if (d.data()['Loc'] !=
-                                                        current.toString()) {
-                                                      users.doc(d.id).delete();
-                                                    }
-                                                  }
-                                                }
-                                              });
+                                              // await users
+                                              //     .where('geohash10',
+                                              //         isEqualTo: encode(
+                                              //             currentPos.latitude,
+                                              //             currentPos.longitude,
+                                              //             9))
+                                              //     .get()
+                                              //     .then((same) {
+                                              //   if (same.docs.isNotEmpty) {
+                                              //     for (var d in same.docs) {
+                                              //       if (d.data()['Loc'] !=
+                                              //           current.toString()) {
+                                              //         users.doc(d.id).delete();
+                                              //       }
+                                              //     }
+                                              //   }
+                                              // });
 
                                               await users.add({
                                                 'Loc': current.toString(),
@@ -591,7 +592,6 @@ class _MyAppState extends State<MyApp> {
                   //               for (var doc in element.docs) {
                   //                 if (!doc.data()['taken']) {
                   //                   doc.reference.update({
-                  //                     'Message': 'N/A',
                   //                     'Name': 'N/A',
                   //                     'Plate': 'Open',
                   //                     'Phone': 'N/A'
