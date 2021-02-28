@@ -68,5 +68,4 @@ See the list of [contributors](https://github.com/fredhua233/Treehacks-2021/cont
 
 ## License
 
-This project is licensed under [MIT](LICENSE.md) License - see the [LICENSE.md](LICENSE.md) file for
-details
+This project is licensed under [MIT](LICENSE.md) License - see the [LICENSE.md](LICENSE.md) file for details
