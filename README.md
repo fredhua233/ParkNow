@@ -2,7 +2,7 @@
 
 A native application that helps you find the nearest road-side parking spots.
 
-![Sample image](https://github.com/fredhua233/Treehacks-2021/blob/main/image.jpg?raw=true)
+![Sample image](./image.png)
 
 ## Inspiration
 Coming from the bay area, parking is always a big headache. It had actually gotten so bad in Berkeley that you have to win a [Nobel Prize for a parking spot](https://www.npr.org/templates/story/story.php?storyId=113883274). Unfortunately, most ordinary joes like us don’t have a chance in these big brain awards, but we believe parking a car should be fast, easy, and cheap hoping that we can easily park anywhere we want, anytime we want, perhaps now. The idea stemmed from a story that began back in high school when one of our members had to help his father pay for parking tickets. Being a delivery driver, parking tickets were always something troubling for their family. These road-side parking spots in San Francisco are like needles in a haystack. Spending 30 minutes cruising around the block is a norm. Considering that 70% of traffic jams are caused by cruising for parking, We knew there had to be a better solution for drivers, and the Earth. 
