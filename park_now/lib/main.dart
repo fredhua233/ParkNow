@@ -4,9 +4,15 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:geoflutterfire/geoflutterfire.dart';
-import 'dart:math';
 import 'Utils.dart';
+
+/*TODO:
+- Write comments and document code
+- Implement tag replacement
+- Improve code readability
+*/
+
+//Move asynchronous to other block
 
 void main() => runApp(MyApp());
 
@@ -18,11 +24,9 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   GoogleMapController mapController;
   FirebaseFirestore db;
-  // final geo = Geoflutterfire();
-  static const BASE32_CODES = '0123456789bcdefghjkmnpqrstuvwxyz';
   Position currentPos;
   Set<Marker> _markers = new Set();
-  TextEditingController _name = new TextEditingController();
+  TextEditingController _name = new TextEditingController(); //Change this
   TextEditingController _phone = new TextEditingController();
   TextEditingController _message = new TextEditingController();
   TextEditingController _plate = new TextEditingController();
@@ -53,6 +57,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _onMapCreated(GoogleMapController controller) {
+    //do we need this
     mapController = controller;
   }
 
@@ -83,45 +88,9 @@ class _MyAppState extends State<MyApp> {
     return await Geolocator.getCurrentPosition();
   }
 
-  String encode(var latitude, var longitude, var numberOfChars) {
-    var chars = [], bits = 0, bitsTotal = 0, hashValue = 0;
-    double maxLat = 90, minLat = -90, maxLon = 180, minLon = -180, mid;
-
-    while (chars.length < numberOfChars) {
-      if (bitsTotal % 2 == 0) {
-        mid = (maxLon + minLon) / 2;
-        if (longitude > mid) {
-          hashValue = (hashValue << 1) + 1;
-          minLon = mid;
-        } else {
-          hashValue = (hashValue << 1) + 0;
-          maxLon = mid;
-        }
-      } else {
-        mid = (maxLat + minLat) / 2;
-        if (latitude > mid) {
-          hashValue = (hashValue << 1) + 1;
-          minLat = mid;
-        } else {
-          hashValue = (hashValue << 1) + 0;
-          maxLat = mid;
-        }
-      }
-
-      bits++;
-      bitsTotal++;
-      if (bits == 5) {
-        var code = BASE32_CODES[hashValue];
-        chars.add(code);
-        bits = 0;
-        hashValue = 0;
-      }
-    }
-    return chars.join('');
-  }
-
   LatLng findClosest(Set markers, BuildContext context) {
-    double dist = 99999;
+    // find the closest open marker
+    double dist = 1.0 / 0.0;
     Marker closest;
 
     for (var marker in markers) {
@@ -137,6 +106,8 @@ class _MyAppState extends State<MyApp> {
         }
       }
     }
+    //
+
     if (closest != null) {
       markers.remove(closest);
       setState(() {
@@ -195,7 +166,8 @@ class _MyAppState extends State<MyApp> {
     _markers.clear();
     users
         .where('geohash6',
-            isEqualTo: encode(currentPos.latitude, currentPos.longitude, 6))
+            isEqualTo: LocationFunctions.encode(
+                currentPos.latitude, currentPos.longitude, 6))
         .get()
         .asStream()
         .asBroadcastStream()
@@ -215,8 +187,6 @@ class _MyAppState extends State<MyApp> {
                     BitmapDescriptor.hueBlue)));
           });
         } else {
-          // LatLng pt = new LatLng(doc.data()['lat'], doc.data()['long']);
-          // if (bnds.contains(pt)) {
           setState(() {
             _markers.add(Marker(
                 // This marker id can be anything that uniquely identifies each marker.
@@ -367,17 +337,21 @@ class _MyAppState extends State<MyApp> {
                                                   'Long', currentPos.longitude);
                                               await _pref.setString(
                                                   'geohash6',
-                                                  encode(currentPos.latitude,
-                                                      currentPos.longitude, 6));
+                                                  LocationFunctions.encode(
+                                                      currentPos.latitude,
+                                                      currentPos.longitude,
+                                                      6));
                                               await _pref.setString(
                                                   'geohash10',
-                                                  encode(currentPos.latitude,
-                                                      currentPos.longitude, 9));
+                                                  LocationFunctions.encode(
+                                                      currentPos.latitude,
+                                                      currentPos.longitude,
+                                                      9));
 
                                               // Implement replacement
                                               // QuerySnapshot same = await users
                                               //     .where('geohash10',
-                                              //         isEqualTo: encode(
+                                              //         isEqualTo: LocationFunctions.encode(
                                               //             currentPos.latitude,
                                               //             currentPos.longitude,
                                               //             9))
@@ -394,7 +368,7 @@ class _MyAppState extends State<MyApp> {
                                               // }
                                               // await users
                                               //     .where('geohash10',
-                                              //         isEqualTo: encode(
+                                              //         isEqualTo: LocationFunctions.encode(
                                               //             currentPos.latitude,
                                               //             currentPos.longitude,
                                               //             9))
@@ -418,14 +392,16 @@ class _MyAppState extends State<MyApp> {
                                                 'Phone': phone,
                                                 'Message': message,
                                                 'Plate': plate,
-                                                'geohash6': encode(
-                                                    currentPos.latitude,
-                                                    currentPos.longitude,
-                                                    6),
-                                                'geohash10': encode(
-                                                    currentPos.latitude,
-                                                    currentPos.longitude,
-                                                    9),
+                                                'geohash6':
+                                                    LocationFunctions.encode(
+                                                        currentPos.latitude,
+                                                        currentPos.longitude,
+                                                        6),
+                                                'geohash10':
+                                                    LocationFunctions.encode(
+                                                        currentPos.latitude,
+                                                        currentPos.longitude,
+                                                        9),
                                                 'taken': true
                                               });
                                               // Create Marker
@@ -470,7 +446,6 @@ class _MyAppState extends State<MyApp> {
                                   setState(() {
                                     parked = false;
                                   });
-
                                   users
                                       .where('Loc',
                                           isEqualTo: _pref.getString('Loc'))
@@ -571,14 +546,14 @@ class _MyAppState extends State<MyApp> {
                   //                 'Name': 'Bob$i',
                   //                 'Plate': 'ABC$i',
                   //                 'Phone': '$i',
-                  //                 'geohash6': encode(lat, lon, 6),
-                  //                 'geohash10': encode(lat, lon, 9),
+                  //                 'geohash6': LocationFunctions.encode(lat, lon, 6),
+                  //                 'geohash10': LocationFunctions.encode(lat, lon, 9),
                   //                 'taken': r.nextBool()
                   //               });
                   //             }
                   //           })),
                   // )
-                  // Generate fake cars
+                  // Update fake cars
                   // Align(
                   //   alignment: Alignment.topCenter,
                   //   child: Padding(

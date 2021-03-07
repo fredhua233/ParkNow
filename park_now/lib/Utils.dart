@@ -33,3 +33,45 @@ class StorageUtil {
     return _preferences.setString(key, value);
   }
 }
+
+class LocationFunctions {
+  static const BASE32_CODES = '0123456789bcdefghjkmnpqrstuvwxyz';
+
+  static String encode(var latitude, var longitude, var numberOfChars) {
+    //encode to GeoHash
+    var chars = [], bits = 0, bitsTotal = 0, hashValue = 0;
+    double maxLat = 90, minLat = -90, maxLon = 180, minLon = -180, mid;
+
+    while (chars.length < numberOfChars) {
+      if (bitsTotal % 2 == 0) {
+        mid = (maxLon + minLon) / 2;
+        if (longitude > mid) {
+          hashValue = (hashValue << 1) + 1;
+          minLon = mid;
+        } else {
+          hashValue = (hashValue << 1) + 0;
+          maxLon = mid;
+        }
+      } else {
+        mid = (maxLat + minLat) / 2;
+        if (latitude > mid) {
+          hashValue = (hashValue << 1) + 1;
+          minLat = mid;
+        } else {
+          hashValue = (hashValue << 1) + 0;
+          maxLat = mid;
+        }
+      }
+
+      bits++;
+      bitsTotal++;
+      if (bits == 5) {
+        var code = BASE32_CODES[hashValue];
+        chars.add(code);
+        bits = 0;
+        hashValue = 0;
+      }
+    }
+    return chars.join('');
+  }
+}
